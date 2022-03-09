@@ -1,11 +1,11 @@
 {
     "Actions": [
       {
-        "Icon": "action/images/actionimage", 
+        "Icon": "src/images/actionimage", 
         "Name": "Display CO2 Value", 
         "States": [
           {
-            "Image": "action/images/action"
+            "Image": "src/images/image"
           }
         ], 
         "Tooltip": "This is an example tooltip", 
@@ -14,11 +14,11 @@
     ], 
     "SDKVersion": 2,
     "Author": "JuliusH4", 
-    "CodePath": "index.html", 
-    "PropertyInspectorPath": "propertyinspector/index.html", 
+    "CodePath": "src/index.html", 
+    "PropertyInspectorPath": "src//index_pi.html", 
     "Description": "Example description", 
     "Name": "Stream Deck Template", 
-    "Icon": "action/images/action", 
+    "Icon": "src/images/image", 
     "URL": "https://github.com/JuliusH4/StreamDeck-NetatmoCO2", 
     "Version": "0.0.1",
     "OS": [

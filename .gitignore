@@ -105,3 +105,4 @@ dist
 
 # Elgato DistributionTool
 DistributionTool.exe
+/dist
