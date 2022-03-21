@@ -1,19 +1,40 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover"
-    />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    <title>com.juliushenle.netatmo-co2 Property Inspector</title>
-    <link rel="stylesheet" href="css/sdpi.css" />
-  </head>
-  <body>
-    <div class="sdpi-wrapper">
-      <div class="sdpi-heading">Netatmo CO2</div>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport"
+    content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,minimal-ui,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <title>com.juliushenle.netatmo-co2 Property Inspector</title>
+  <link rel="stylesheet" href="../sdpi.css" />
+</head>
+
+<body>
+  <div class="sdpi-wrapper">
+    <div class="sdpi-heading">Netatmo CO2</div>
+
+    <div type="textarea" class="sdpi-item" id="client_id_ta">
+      <div class="sdpi-item-label">Client Id</div>
+      <span class="sdpi-item-value">
+        <input type="text" id="client_id" required></input>
+      </span>
     </div>
-  </body>
+
+    <div type="textarea" class="sdpi-item" id="client_secret_ta">
+      <div class="sdpi-item-label">Client Secret</div>
+      <span class="sdpi-item-value">
+        <input type="text" id="client_secret" required></input>
+      </span>
+    </div>
+
+    <div class="sdpi-item">
+      <div class="sdpi-item-label">Reset</div>
+      <button class="sdpi-item-value" id="mybutton">Reset Creds</button>
+    </div>
+
+  </div>
+</body>
+
 </html>
