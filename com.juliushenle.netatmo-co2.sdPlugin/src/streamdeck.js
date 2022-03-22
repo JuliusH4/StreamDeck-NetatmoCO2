@@ -14,8 +14,10 @@
 
 $SD.on("connected", (jsonObj) => connected(jsonObj));
 
-let refresh_token = "xxx";
-let access_token = "xxx";
+let refresh_token = "xx";
+let access_token = "xx";
+const client_id = "xx";
+const client_secret = "xx";
 
 function connected(jsn) {
   // Subscribe to the willAppear and other events
@@ -87,7 +89,6 @@ const action = {
   },
 
   onKeyUp: function (jsn) {
-
     const headers = new Headers();
     headers.append("Authorization", `Bearer ${access_token}`);
 
@@ -98,12 +99,37 @@ const action = {
     };
 
     fetch("https://api.netatmo.com/api/getstationsdata", requestOptions)
-      .then((response) => response.json())
+      .then((response) => {
+        resultStatus = response.status;
+        return response.json();
+      })
       .then((result) => {
         console.log(result);
-        const co2_value = result.body.devices[0].dashboard_data.CO2
-        console.log("CO2 Value", co2_value)
-        $SD.api.setTitle(jsn.context, co2_value);
+        switch (resultStatus) {
+          case 200:
+            const co2_value = result.body.devices[0].dashboard_data.CO2;
+            console.log("CO2 Value", co2_value);
+            $SD.api.setTitle(jsn.context, co2_value);
+            console.log("title set");
+
+            const imagePath =
+              co2_value < 1000
+                ? "images/assets/key_green.png"
+                : co2_value > 2000
+                ? "images/assets/key_orange.png"
+                : "images/assets/key_red.png";
+            console.log("LoadImage:", imagePath);
+            this.setImage(jsn, imagePath);
+            console.log("Image succesful updated");
+            break;
+          case 403:
+            if (result.error.code != undefined && result.error.code == 3) {
+              console.log("Refresh");
+              break;
+            }
+          default:
+            console.error("unknown response", resultStatus, result);
+        }
       })
       .catch((error) => console.log("error", error));
   },
@@ -122,6 +148,16 @@ const action = {
    * This snippet shows how you could save settings persistantly to Stream Deck software.
    * It is not used in this example plugin.
    */
+
+  setImage: function (jsn, image) {
+    loadImageAsDataUri(image, (imgUrl) => {
+      $SD.api.setImage(
+        jsn.context,
+        imgUrl,
+        DestinationEnum.HARDWARE_AND_SOFTWARE
+      );
+    });
+  },
 
   saveSettings: function (jsn, sdpi_collection) {
     console.log("saveSettings:", jsn);
@@ -144,3 +180,50 @@ const action = {
    *
    */
 };
+
+const newToken = () => {
+  const myHeaders = new Headers();
+  myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+  const urlencoded = new URLSearchParams();
+  urlencoded.append("grant_type", "refresh_token");
+  urlencoded.append("refresh_token", refresh_token);
+  urlencoded.append("client_id", client_id);
+  urlencoded.append("client_secret", client_secret);
+
+  const requestOptions = {
+    method: "POST",
+    headers: myHeaders,
+    body: urlencoded,
+    redirect: "follow",
+  };
+  fetch("https://api.netatmo.com/oauth2/token", requestOptions)
+    .then((response) => {
+      isresultOk = response.ok;
+      return response.json();
+    })
+    .then((result) => {
+      if (isresultOk) {
+        access_token = result.access_token;
+      }
+      console.error("unknown resopnse while refresh", result);
+    })
+    .catch((error) => console.log("error", error));
+};
+
+function loadImageAsDataUri(url, callback) {
+  var image = new Image();
+
+  image.onload = function () {
+    var canvas = document.createElement("canvas");
+
+    canvas.width = this.naturalWidth;
+    canvas.height = this.naturalHeight;
+
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(this, 0, 0);
+    callback(canvas.toDataURL("image/png"));
+  };
+
+  image.src = url;
+}
