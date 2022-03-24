@@ -14,10 +14,7 @@
 
 $SD.on("connected", (jsonObj) => connected(jsonObj));
 
-let refresh_token = "xx";
-let access_token = "xx";
-const client_id = "xx";
-const client_secret = "xx";
+let access_token = null;
 
 function connected(jsn) {
   // Subscribe to the willAppear and other events
@@ -68,6 +65,10 @@ const action = {
      * input-field it get's saved to Stream Deck persistently and the plugin
      * will receive the updated 'didReceiveSettings' event.
      */
+    
+    console.log("didReciveSettings")
+    this.settings = Utils.getProp(jsn, 'payload.settings', {});
+
   },
 
   /**
@@ -86,9 +87,14 @@ const action = {
      * (in the 'didReceiveSettings above)
      *
      */
+
+    console.log("onWillAppear")
+    this.settings = jsn.payload.settings;
+    console.log("settings", this.settings)
   },
 
   onKeyUp: function (jsn) {
+    console.log("settings", this.settings)
     const headers = new Headers();
     headers.append("Authorization", `Bearer ${access_token}`);
 
@@ -115,7 +121,7 @@ const action = {
             const imagePath =
               co2_value < 1000
                 ? "images/assets/key_green.png"
-                : co2_value > 2000
+                : co2_value < 2000
                 ? "images/assets/key_orange.png"
                 : "images/assets/key_red.png";
             console.log("LoadImage:", imagePath);
@@ -123,8 +129,12 @@ const action = {
             console.log("Image succesful updated");
             break;
           case 403:
-            if (result.error.code != undefined && result.error.code == 3) {
+            const isError = result.error.code != undefined;
+            if (isError && (result.error.code == 3 || result.error.code == 2)) {
               console.log("Refresh");
+              if (this.settings.refresh_token != null) {
+                newToken(this.settings.client_id, this.settings.client_secret, this.settings.refresh_token);
+              }
               break;
             }
           default:
@@ -142,6 +152,11 @@ const action = {
      */
 
     const sdpi_collection = Utils.getProp(jsn, "payload.sdpi_collection", {});
+    console.log("onSentToPlugin", sdpi_collection)
+    if (sdpi_collection.key === "btnReset") {
+      console.log("reset access token")
+      access_token = null
+    }
   },
 
   /**
@@ -170,18 +185,9 @@ const action = {
     }
   },
 
-  /**
-   * Here's a quick demo-wrapper to show how you could change a key's title based on what you
-   * stored in settings.
-   * If you enter something into Property Inspector's name field (in this demo),
-   * it will get the title of your key.
-   *
-   * @param {JSON} jsn // The JSON object passed from Stream Deck to the plugin, which contains the plugin's context
-   *
-   */
 };
 
-const newToken = () => {
+const newToken = (client_id, client_secret, refresh_token) => {
   const myHeaders = new Headers();
   myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
 
@@ -205,8 +211,9 @@ const newToken = () => {
     .then((result) => {
       if (isresultOk) {
         access_token = result.access_token;
+      } else {
+        console.error("unknown resopnse while refresh", result);
       }
-      console.error("unknown resopnse while refresh", result);
     })
     .catch((error) => console.log("error", error));
 };
