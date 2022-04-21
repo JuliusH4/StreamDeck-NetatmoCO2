@@ -1,17 +1,5 @@
 /* global $CC, Utils, $SD */
 
-/**
- * Here are a couple of wrappers we created to help you quickly setup
- * your plugin and subscribe to events sent by Stream Deck to your plugin.
- */
-
-/**
- * The 'connected' event is sent to your plugin, after the plugin's instance
- * is registered with Stream Deck software. It carries the current websocket
- * and other information about the current environmet in a JSON object
- * You can use it to subscribe to events you want to use in your plugin.
- */
-
 $SD.on("connected", (jsonObj) => connected(jsonObj));
 
 let access_token = null;
@@ -33,26 +21,6 @@ function connected(jsn) {
     "com.juliushenle.netatmo-co2.displayco2.didReceiveSettings",
     (jsonObj) => action.onDidReceiveSettings(jsonObj)
   );
-  $SD.on(
-    "com.juliushenle.netatmo-co2.displayco2.propertyInspectorDidAppear",
-    (jsonObj) => {
-      console.log(
-        "%c%s",
-        "color: white; background: black; font-size: 13px;",
-        "[app.js]propertyInspectorDidAppear:"
-      );
-    }
-  );
-  $SD.on(
-    "com.juliushenle.netatmo-co2.displayco2.propertyInspectorDidDisappear",
-    (jsonObj) => {
-      console.log(
-        "%c%s",
-        "color: white; background: red; font-size: 13px;",
-        "[app.js]propertyInspectorDidDisappear:"
-      );
-    }
-  );
 }
 
 // ACTIONS
@@ -65,104 +33,39 @@ const action = {
      * input-field it get's saved to Stream Deck persistently and the plugin
      * will receive the updated 'didReceiveSettings' event.
      */
-    
-    console.log("didReciveSettings")
-    this.settings = Utils.getProp(jsn, 'payload.settings', {});
-
+    this.settings = Utils.getProp(jsn, "payload.settings", {});
   },
 
   /**
    * The 'willAppear' event is the first event a key will receive, right before it gets
    * shown on your Stream Deck and/or in Stream Deck software.
-   * This event is a good place to setup your plugin and look at current settings (if any),
-   * which are embedded in the events payload.
    */
 
   onWillAppear: function (jsn) {
-    /**
-     * The willAppear event carries your saved settings (if any). You can use these settings
-     * to setup your plugin or save the settings for later use.
-     * If you want to request settings at a later time, you can do so using the
-     * 'getSettings' event, which will tell Stream Deck to send your data
-     * (in the 'didReceiveSettings above)
-     *
-     */
-
-    console.log("onWillAppear")
     this.settings = jsn.payload.settings;
-    console.log("settings", this.settings)
+
+    setInterval(() => {
+      console.info("Auto update");
+      this.updateKey(jsn);
+    }, 15 * 60 * 1000); // every 15 minutes
   },
 
   onKeyUp: function (jsn) {
-    console.log("settings", this.settings)
-    const headers = new Headers();
-    headers.append("Authorization", `Bearer ${access_token}`);
-
-    const requestOptions = {
-      method: "GET",
-      headers,
-      redirect: "follow",
-    };
-
-    fetch("https://api.netatmo.com/api/getstationsdata", requestOptions)
-      .then((response) => {
-        resultStatus = response.status;
-        return response.json();
-      })
-      .then((result) => {
-        console.log(result);
-        switch (resultStatus) {
-          case 200:
-            const co2_value = result.body.devices[0].dashboard_data.CO2;
-            console.log("CO2 Value", co2_value);
-            $SD.api.setTitle(jsn.context, co2_value);
-            console.log("title set");
-
-            const imagePath =
-              co2_value < 1000
-                ? "images/assets/key_green.png"
-                : co2_value < 2000
-                ? "images/assets/key_orange.png"
-                : "images/assets/key_red.png";
-            console.log("LoadImage:", imagePath);
-            this.setImage(jsn, imagePath);
-            console.log("Image succesful updated");
-            break;
-          case 403:
-            const isError = result.error.code != undefined;
-            if (isError && (result.error.code == 3 || result.error.code == 2)) {
-              console.log("Refresh");
-              if (this.settings.refresh_token != null) {
-                newToken(this.settings.client_id, this.settings.client_secret, this.settings.refresh_token);
-              }
-              break;
-            }
-          default:
-            console.error("unknown response", resultStatus, result);
-        }
-      })
-      .catch((error) => console.log("error", error));
+    this.updateKey(jsn);
   },
 
   onSendToPlugin: function (jsn) {
     /**
      * This is a message sent directly from the Property Inspector
-     * (e.g. some value, which is not saved to settings)
-     * You can send this event from Property Inspector (see there for an example)
      */
 
     const sdpi_collection = Utils.getProp(jsn, "payload.sdpi_collection", {});
-    console.log("onSentToPlugin", sdpi_collection)
+
     if (sdpi_collection.key === "btnReset") {
-      console.log("reset access token")
-      access_token = null
+      console.log("reset access token");
+      access_token = null;
     }
   },
-
-  /**
-   * This snippet shows how you could save settings persistantly to Stream Deck software.
-   * It is not used in this example plugin.
-   */
 
   setImage: function (jsn, image) {
     loadImageAsDataUri(image, (imgUrl) => {
@@ -185,6 +88,66 @@ const action = {
     }
   },
 
+  updateKey: function (jsn) {
+    console.log("run try");
+    this.getco2value().catch((error) => {
+      console.log("run catch", this.settings.refresh_token);
+      if (this.settings.refresh_token != null) {
+        newToken(
+          this.settings.client_id,
+          this.settings.client_secret,
+          this.settings.refresh_token
+        );
+        this.getco2value(jsn);
+      }
+    });
+  },
+
+  getco2value: async function (jsn) {
+    const headers = new Headers();
+    headers.append("Authorization", `Bearer ${access_token}`);
+
+    const requestOptions = {
+      method: "GET",
+      headers,
+      redirect: "follow",
+    };
+
+    await fetch("https://api.netatmo.com/api/getstationsdata", requestOptions)
+      .then((response) => {
+        resultStatus = response.status;
+        return response.json();
+      })
+      .then((result) => {
+        console.info("Response getStationsData", result);
+        switch (resultStatus) {
+          case 200:
+            co2_value = result.body.devices[0].dashboard_data.CO2;
+            console.log("set Title", co2_value);
+            $SD.api.setTitle(jsn.context, co2_value);
+            const imagePath =
+              co2_value < 1000
+                ? "images/assets/key_green.png"
+                : co2_value < 2000
+                ? "images/assets/key_orange.png"
+                : "images/assets/key_red.png";
+            this.setImage(jsn, imagePath);
+            break;
+          case 403:
+            const isError = result.error != undefined;
+            if (isError && result.error.code == 3) {
+              console.info("Refresh required");
+              throw "Refresh required";
+            }
+            if (isError && result.error.code == 2) {
+              console.info("Invalid access token");
+              throw "New access token required";
+            }
+          default:
+            console.error("unknown response", resultStatus, result);
+        }
+      });
+  },
 };
 
 const newToken = (client_id, client_secret, refresh_token) => {
@@ -210,6 +173,7 @@ const newToken = (client_id, client_secret, refresh_token) => {
     })
     .then((result) => {
       if (isresultOk) {
+        console.info("Set new access token", access_token);
         access_token = result.access_token;
       } else {
         console.error("unknown resopnse while refresh", result);
@@ -219,15 +183,15 @@ const newToken = (client_id, client_secret, refresh_token) => {
 };
 
 function loadImageAsDataUri(url, callback) {
-  var image = new Image();
+  let image = new Image();
 
   image.onload = function () {
-    var canvas = document.createElement("canvas");
+    let canvas = document.createElement("canvas");
 
     canvas.width = this.naturalWidth;
     canvas.height = this.naturalHeight;
 
-    var ctx = canvas.getContext("2d");
+    let ctx = canvas.getContext("2d");
     ctx.drawImage(this, 0, 0);
     callback(canvas.toDataURL("image/png"));
   };
